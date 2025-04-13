@@ -6,16 +6,16 @@ import os
 from streamlit_js_eval import streamlit_js_eval
 
 CSV_FILE = "yakiimo_log.csv"
-st.set_page_config(page_title="🍠GPSデバッグモード", layout="centered")
-st.title("📍 GPS取得デバッグ + 月別CSV保存")
+st.set_page_config(page_title="🍠 GPS取得強化版", layout="centered")
+st.title("📍 GPS取得強化版 + 月別CSV保存")
 
-# 再取得ボタンでリフレッシュ
+# 再取得ボタンとステート
 if 'gps_refresh' not in st.session_state:
     st.session_state.gps_refresh = 0
 if st.button("🔄 位置情報を再取得"):
     st.session_state.gps_refresh += 1
 
-# JavaScript評価：成功時と失敗時で結果を返す
+# GPS取得（成功/失敗判定付き）
 gps_result = streamlit_js_eval(
     js_expressions="""
         navigator.geolocation.getCurrentPosition(
@@ -32,22 +32,20 @@ gps_result = streamlit_js_eval(
 )
 
 # 結果表示
+gps = ""
 if gps_result:
     if gps_result.startswith("SUCCESS:"):
         gps = gps_result.replace("SUCCESS:", "")
-        st.success(f"✅ 取得成功: {gps}")
+        st.success(f"✅ 現在地取得成功: {gps}")
     elif gps_result.startswith("ERROR:"):
         parts = gps_result.split(':')
         code = parts[1] if len(parts) > 1 else 'N/A'
         msg = parts[2] if len(parts) > 2 else '詳細不明'
         st.error(f"❌ GPS取得失敗: {msg}（コード: {code}）")
-        gps = ""
     else:
-        st.warning("GPS応答の解析に失敗しました。")
-        gps = ""
+        st.warning("⚠️ GPS応答の解析に失敗しました。")
 else:
-    st.warning("⚠️ 現在地が取得されていません。位置情報を許可し、再取得ボタンを押してください。")
-    gps = ""
+    st.info("🔹 再取得ボタンを押して現在地を取得してください。")
 
 # 入力フォーム
 qty = st.number_input("🍠 販売個数", min_value=0)
@@ -56,7 +54,7 @@ note = st.text_input("📝 備考")
 
 if st.button("✅ 記録を保存"):
     if not gps:
-        st.error("❌ GPSが取得できていません。")
+        st.error("❌ 位置情報が取得できていません。記録は保存できません。")
     else:
         now = datetime.now()
         date_str = now.strftime("%Y-%m-%d %H:%M:%S")
