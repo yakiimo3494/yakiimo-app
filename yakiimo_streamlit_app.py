@@ -8,7 +8,7 @@ import pydeck as pdk
 
 CSV_FILE = "yakiimo_log.csv"
 st.set_page_config(page_title="🍠 GPS取得強化版", layout="centered")
-st.title("📍 GPS取得 + 地図履歴プロット版")
+st.title("📍 GPS取得 + 地図履歴プロット（安定版）")
 
 # 再取得ボタンとステート
 if 'gps_refresh' not in st.session_state:
@@ -16,7 +16,7 @@ if 'gps_refresh' not in st.session_state:
 if st.button("🔄 位置情報を再取得"):
     st.session_state.gps_refresh += 1
 
-# GPS取得（成功/失敗判定付き＋高精度設定）
+# GPS取得（高精度設定）
 gps_result = streamlit_js_eval(
     js_expressions="""
         navigator.geolocation.getCurrentPosition(
@@ -90,11 +90,16 @@ if st.button("✅ 記録を保存", disabled=not bool(gps)):
         st.success("✅ 保存しました！")
         st.info(f"🗂 月別ファイルにも保存済: {month_filename}")
 
-# 履歴プロット
+# 履歴プロット（GPS座標の分解エラー対応版）
 map_data = None
 try:
     df_all = pd.read_csv(CSV_FILE)
-    df_all[['lat', 'lon']] = df_all["GPS座標"].str.split(",", expand=True).astype(float)
+    gps_split = df_all["GPS座標"].str.split(",", expand=True)
+    gps_split = gps_split[gps_split.shape[1] == 2]
+    gps_split.columns = ['lat', 'lon']
+    gps_split = gps_split.astype(float)
+    df_all = df_all.loc[gps_split.index]
+    df_all[['lat', 'lon']] = gps_split
     df_all["金額"] = df_all["金額"].fillna(0)
     map_data = df_all
 except Exception as e:
@@ -111,14 +116,12 @@ if map_data is not None and not map_data.empty:
         get_fill_color="[255, 140, 0, 160]",
         pickable=True
     )
-
     view_state = pdk.ViewState(
         latitude=map_data["lat"].mean(),
         longitude=map_data["lon"].mean(),
         zoom=12,
         pitch=0
     )
-
     st.pydeck_chart(pdk.Deck(layers=[layer], initial_view_state=view_state, tooltip={"text": "¥{金額}"}))
 else:
     st.info("📍まだ売上地点の記録がありません。")
